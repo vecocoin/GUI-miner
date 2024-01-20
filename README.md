@@ -4,7 +4,7 @@ This is a simple CPU miner for VECO with a user-friendly graphical interface.
 
 ## Download
 
-Download the latest version [here](https://github.com/vecocoin/GPU-miner/releases/new).
+Download the latest version [here](https://github.com/vecocoin/GPU-miner/releases/).
 
 ## Guide
 
