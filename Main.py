@@ -103,6 +103,10 @@ def update_mining_status(message):
 
 def start_mining():
     global mining_process
+
+    # Disable the "Mine" button to prevent re-clicking
+    mine_button.config(state=tk.DISABLED)
+
     if mining_process is None or mining_process.poll() is not None:
         # Clear the output textbox only if mining is not already in progress
         output_textbox.delete("1.0", tk.END)
@@ -135,6 +139,7 @@ def stop_mining():
         mining_process = None
         output_textbox.insert(tk.END, "Mining stopped.\n")
     update_mining_status("Status: Not Mining")
+    mine_button.config(state=tk.NORMAL)
 
 
 def on_closing():
