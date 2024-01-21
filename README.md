@@ -1,4 +1,4 @@
-# Simple VECO CPU Miner with GUI Interface
+# Simple VECO CPU Miner with GUI
 
 This is a simple CPU miner for VECO with a user-friendly graphical interface.
 
