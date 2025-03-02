@@ -16,33 +16,87 @@ mining_process = None
 # Global flag to indicate intentional termination
 stop_requested = False
 
+default_config = {
+    "Profile": {
+        "Default": {
+            "poolurl": "stratum+tcp://stratum.vecocoin.com:8602",
+            "username": "VR3sYurX7fG865MjuptiqoHrM2fHWE8n9s.001",
+            "threads": "4",
+            "other": "-p c=VECO"
+        }
+    }
+}
+
 
 def strip_ansi_codes(text):
     ansi_escape = re.compile(r'(?:\x1B[@-_]|[\x80-\x9F])[0-?]*[ -/]*[@-~]')
     return ansi_escape.sub('', text)
 
+def save_config(profile_name):
+    try:
+        with open(config_file, 'r') as file:
+            config = json.load(file)
+    except FileNotFoundError:
+        config = {"Profile": {}}
 
-def save_config():
-    config = {
+    config["Profile"][profile_name] = {
         'poolurl': poolurl_entry.get(),
         'username': username_entry.get(),
         'threads': threads_entry.get(),
         'other': other_entry.get()
     }
+
     with open(config_file, 'w') as file:
-        json.dump(config, file)
+        json.dump(config, file, indent=4)
+
+#def save_current_config():
+    # Speichert die aktuelle Konfiguration unter dem ausgewählten Profilnamen
+#    profile_name = selected_profile_name.get()  # Holt den ausgewählten Profilnamen
+#    save_config(profile_name)
+#    update_profile_options()  # Aktualisiert die Profiloptionen im Dropdown-Menü
 
 
-def load_config():
+def save_config_with_name():
+    profile_name = profile_name_entry.get()  # Holt den Namen aus dem Eingabefeld
+    if profile_name:  # Überprüft, ob der Name nicht leer ist
+        save_config(profile_name)
+        update_profile_options()  # Aktualisiert die Profiloptionen im Dropdown-Menü
+        selected_profile_name.set(profile_name)  # Setzt das ausgewählte Profil auf das neu gespeicherte Profil
+    else:
+        print("Profile name cannot be empty")  # Einfache Fehlermeldung (könnte durch eine GUI-basierte Meldung ersetzt werden)
+
+
+def load_config(profile_name):
     try:
         with open(config_file, 'r') as file:
             config = json.load(file)
-            poolurl_entry.insert(0, config.get('poolurl', ''))
-            username_entry.insert(0, config.get('username', ''))
-            threads_entry.insert(0, config.get('threads', ''))
-            other_entry.insert(0, config.get('other', ''))
     except FileNotFoundError:
-        pass
+        config = default_config  # Setze die Standardkonfiguration
+        with open(config_file, 'w') as file:
+            json.dump(config, file, indent=4)  # Speichere die Standardkonfiguration in der Konfigurationsdatei
+
+    profile = config["Profile"].get(profile_name, default_config["Profile"]["Default"])
+    poolurl_entry.delete(0, tk.END)
+    poolurl_entry.insert(0, profile.get('poolurl', ''))
+    username_entry.delete(0, tk.END)
+    username_entry.insert(0, profile.get('username', ''))
+    threads_entry.delete(0, tk.END)
+    threads_entry.insert(0, profile.get('threads', ''))
+    other_entry.delete(0, tk.END)
+    other_entry.insert(0, profile.get('other', ''))
+
+
+def load_profile_names():
+    try:
+        with open(config_file, 'r') as file:
+            config = json.load(file)
+    except (FileNotFoundError, json.JSONDecodeError):
+        config = default_config  # Verwende die Standardkonfiguration, wenn die Datei nicht existiert oder leer ist
+
+    if "Profile" in config:
+        return list(config["Profile"].keys())
+    else:
+        return ["Default"]  # Gib standardmäßig 'Default' zurück, falls 'Profile' nicht gefunden wurde
 
 
 def execute_command(cmd, output_queue):
@@ -154,6 +208,25 @@ def on_closing():
     root.destroy()  # Close the GUI
 
 
+def update_profile_options():
+    # Aktualisiere die Liste der Profilnamen
+    profile_names = load_profile_names()
+
+    # Menu des Dropdown-Widgets leeren
+    profile_option_menu['menu'].delete(0, 'end')
+
+    # Neue Profilnamen hinzufügen
+    for profile_name in profile_names:
+        profile_option_menu['menu'].add_command(label=profile_name,
+                                                command=lambda value=profile_name: selected_profile_name.set(value))
+
+    # Setze den ausgewählten Wert auf das erste Profil in der Liste oder auf "Default"
+    if profile_names:
+        selected_profile_name.set(profile_names[0])
+    else:
+        selected_profile_name.set("Default")
+
+
 # Create the main window
 root = tk.Tk()
 root.title("Veco GUI miner")
@@ -178,21 +251,50 @@ tk.Label(root, text="Other options e.g. difficulty, password (not required):").g
 other_entry = tk.Entry(root, width=50)
 other_entry.grid(row=3, column=1)
 
-# Create and place the "Save config" button
-save_button = tk.Button(root, text="Save as default", command=save_config, width=50)
-save_button.grid(row=4, columnspan=3)
+tk.Label(root, text="Profile name:").grid(row=8)
+profile_name_entry = tk.Entry(root, width=20)
+profile_name_entry.grid(row=9, column=0)
+
+# Button zum Speichern der Konfiguration unter dem eingegebenen Namen
+save_as_button = tk.Button(root, text="Save profile", command=save_config_with_name, width=20)
+save_as_button.grid(row=11, column=0)
+
+# Variable, um den ausgewählten Profilnamen zu speichern
+selected_profile_name = tk.StringVar(root)
+
+# Initialisiere die Liste der Profilnamen
+profile_names = load_profile_names()
+
+# Standardwert setzen, wenn Profile vorhanden sind
+if profile_names:
+    selected_profile_name.set(profile_names[0])
+else:
+    selected_profile_name.set("Default")
+
+tk.Label(root, text="Select existing profile:").grid(row=8, column=1)
+# Dropdown-Menü zur Profilauswahl erstellen
+profile_option_menu = tk.OptionMenu(root, selected_profile_name, *profile_names)
+profile_option_menu.grid(row=9, column=1)
+
+# Funktion, um die Konfiguration für das ausgewählte Profil zu laden
+def profile_selected(*args):
+    load_config(selected_profile_name.get())
+
+# Trace hinzufügen, um Änderungen im Dropdown-Menü zu verfolgen
+selected_profile_name.trace("w", profile_selected)
+
 
 # Create and place the output textbox
 output_textbox = tk.Text(root, bg='black', fg='white')
-output_textbox.grid(row=5, column=0, columnspan=2, sticky='nsew')
+output_textbox.grid(row=7, column=0, columnspan=2, sticky='nsew')
 
 # Create tags for 'Accepted' and 'Rejected' words
 #output_textbox.tag_config("accepted", foreground="green")
 #output_textbox.tag_config("rejected", foreground="red")
 
 # Configure the grid to allow resizing
-root.grid_rowconfigure(3, weight=1)  # Allow row 3 (where the textbox is) to resize
-root.grid_columnconfigure(1, weight=1)  # Allow column 1 to resize
+#root.grid_rowconfigure(3, weight=1)  # Allow row 3 (where the textbox is) to resize
+#root.grid_columnconfigure(1, weight=1)  # Allow column 1 to resize
 
 # Create and place the "mine" button with custom color and font
 mine_button = tk.Button(root, text="Mine", command=start_mining, bg="green", font=custom_font, width=50)
@@ -204,10 +306,11 @@ stop_button.grid(row=6, column=1, columnspan=1)
 
 # Status label
 status_label = tk.Label(root, text="Status: Not Mining", font=custom_font)
-status_label.grid(row=7, column=0, columnspan=2)
+status_label.grid(row=12, column=0, columnspan=2)
 
 # Load the configuration at startup
-load_config()
+load_config(selected_profile_name.get())
+
 
 root.protocol("WM_DELETE_WINDOW", on_closing)
 
