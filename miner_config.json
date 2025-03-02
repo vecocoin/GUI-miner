@@ -1,0 +1,10 @@
+{
+    "Profile": {
+        "Default": {
+            "poolurl": "stratum+tcp://stratum.vecocoin.com:8602",
+            "username": "VR3sYurX7fG865MjuptiqoHrM2fHWE8n9s.001",
+            "threads": "4",
+            "other": "-p c=VECO"
+        }
+    }
+}
